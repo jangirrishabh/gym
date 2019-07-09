@@ -345,6 +345,14 @@ for reward_type in ['sparse', 'dense']:
         'reward_type': reward_type,
     }
 
+    # Kinova Gen3
+    register(
+        id='Gen3{}-v0'.format(suffix),
+        entry_point='gym.envs.robotics:Gen3ReachEnv',
+        kwargs=kwargs,
+        max_episode_steps=50,
+    )
+
     # Fetch
     register(
         id='FetchSlide{}-v1'.format(suffix),

@@ -1,3 +1,6 @@
+from gym.envs.robotics.gen3_env import Gen3Env
+from gym.envs.robotics.gen3.reach import Gen3ReachEnv
+
 from gym.envs.robotics.fetch_env import FetchEnv
 from gym.envs.robotics.fetch.slide import FetchSlideEnv
 from gym.envs.robotics.fetch.pick_and_place import FetchPickAndPlaceEnv
