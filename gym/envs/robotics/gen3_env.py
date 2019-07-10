@@ -63,8 +63,8 @@ class Gen3Env(robot_env.RobotEnv):
 
     def _step_callback(self):
         if self.block_gripper:
-            self.sim.data.set_joint_qpos('robot0:l_gripper_finger_joint', 0.)
-            self.sim.data.set_joint_qpos('robot0:r_gripper_finger_joint', 0.)
+            #self.sim.data.set_joint_qpos('robot0:l_gripper_finger_joint', 0.)
+            #self.sim.data.set_joint_qpos('robot0:r_gripper_finger_joint', 0.)
             self.sim.forward()
 
     def _set_action(self, action):
@@ -85,43 +85,48 @@ class Gen3Env(robot_env.RobotEnv):
         utils.mocap_set_action(self.sim, action)
 
     def _get_obs(self):
-        # positions
-        grip_pos = self.sim.data.get_site_xpos('robot0:grip')
-        dt = self.sim.nsubsteps * self.sim.model.opt.timestep
-        grip_velp = self.sim.data.get_site_xvelp('robot0:grip') * dt
-        robot_qpos, robot_qvel = utils.robot_get_obs(self.sim)
-        if self.has_object:
-            object_pos = self.sim.data.get_site_xpos('object0')
-            # rotations
-            object_rot = rotations.mat2euler(self.sim.data.get_site_xmat('object0'))
-            # velocities
-            object_velp = self.sim.data.get_site_xvelp('object0') * dt
-            object_velr = self.sim.data.get_site_xvelr('object0') * dt
-            # gripper state
-            object_rel_pos = object_pos - grip_pos
-            object_velp -= grip_velp
-        else:
-            object_pos = object_rot = object_velp = object_velr = object_rel_pos = np.zeros(0)
-        gripper_state = robot_qpos[-2:]
-        gripper_vel = robot_qvel[-2:] * dt  # change to a scalar if the gripper is made symmetric
-
-        if not self.has_object:
-            achieved_goal = grip_pos.copy()
-        else:
-            achieved_goal = np.squeeze(object_pos.copy())
-        obs = np.concatenate([
-            grip_pos, object_pos.ravel(), object_rel_pos.ravel(), gripper_state, object_rot.ravel(),
-            object_velp.ravel(), object_velr.ravel(), grip_velp, gripper_vel,
-        ])
-
         return {
-            'observation': obs.copy(),
-            'achieved_goal': achieved_goal.copy(),
-            'desired_goal': self.goal.copy(),
+            'observation': self.np_random.uniform(-0.15, 0.15, size=3),
+            'achieved_goal': self.np_random.uniform(-0.15, 0.15, size=3),
+            'desired_goal': self.np_random.uniform(-0.15, 0.15, size=3)
         }
+        # # positions
+        # grip_pos = self.sim.data.get_site_xpos('robot0:grip')
+        # dt = self.sim.nsubsteps * self.sim.model.opt.timestep
+        # grip_velp = self.sim.data.get_site_xvelp('robot0:grip') * dt
+        # robot_qpos, robot_qvel = utils.robot_get_obs(self.sim)
+        # if self.has_object:
+        #     object_pos = self.sim.data.get_site_xpos('object0')
+        #     # rotations
+        #     object_rot = rotations.mat2euler(self.sim.data.get_site_xmat('object0'))
+        #     # velocities
+        #     object_velp = self.sim.data.get_site_xvelp('object0') * dt
+        #     object_velr = self.sim.data.get_site_xvelr('object0') * dt
+        #     # gripper state
+        #     object_rel_pos = object_pos - grip_pos
+        #     object_velp -= grip_velp
+        # else:
+        #     object_pos = object_rot = object_velp = object_velr = object_rel_pos = np.zeros(0)
+        # gripper_state = robot_qpos[-2:]
+        # gripper_vel = robot_qvel[-2:] * dt  # change to a scalar if the gripper is made symmetric
+
+        # if not self.has_object:
+        #     achieved_goal = grip_pos.copy()
+        # else:
+        #     achieved_goal = np.squeeze(object_pos.copy())
+        # obs = np.concatenate([
+        #     grip_pos, object_pos.ravel(), object_rel_pos.ravel(), gripper_state, object_rot.ravel(),
+        #     object_velp.ravel(), object_velr.ravel(), grip_velp, gripper_vel,
+        # ])
+
+        # return {
+        #     'observation': obs.copy(),
+        #     'achieved_goal': achieved_goal.copy(),
+        #     'desired_goal': self.goal.copy(),
+        # }
 
     def _viewer_setup(self):
-        body_id = self.sim.model.body_name2id('robot0:gripper_link')
+        body_id = self.sim.model.body_name2id('robotiq_85_base_link')
         lookat = self.sim.data.body_xpos[body_id]
         for idx, value in enumerate(lookat):
             self.viewer.cam.lookat[idx] = value
@@ -131,9 +136,9 @@ class Gen3Env(robot_env.RobotEnv):
 
     def _render_callback(self):
         # Visualize target.
-        sites_offset = (self.sim.data.site_xpos - self.sim.model.site_pos).copy()
-        site_id = self.sim.model.site_name2id('target0')
-        self.sim.model.site_pos[site_id] = self.goal - sites_offset[0]
+        #sites_offset = (self.sim.data.site_xpos - self.sim.model.site_pos).copy()
+        #site_id = self.sim.model.site_name2id('target0')
+        #self.sim.model.site_pos[site_id] = self.goal - sites_offset[0]
         self.sim.forward()
 
     def _reset_sim(self):
@@ -160,7 +165,8 @@ class Gen3Env(robot_env.RobotEnv):
             if self.target_in_the_air and self.np_random.uniform() < 0.5:
                 goal[2] += self.np_random.uniform(0, 0.45)
         else:
-            goal = self.initial_gripper_xpos[:3] + self.np_random.uniform(-0.15, 0.15, size=3)
+            #goal = self.initial_gripper_xpos[:3] + self.np_random.uniform(-0.15, 0.15, size=3)
+            goal = self.np_random.uniform(-0.15, 0.15, size=3)
         return goal.copy()
 
     def _is_success(self, achieved_goal, desired_goal):
@@ -174,15 +180,15 @@ class Gen3Env(robot_env.RobotEnv):
         self.sim.forward()
 
         # Move end effector into position.
-        gripper_target = np.array([-0.498, 0.005, -0.431 + self.gripper_extra_height]) + self.sim.data.get_site_xpos('robot0:grip')
+        gripper_target = np.array([-0.498, 0.005, -0.431 + self.gripper_extra_height]) #+ self.sim.data.get_site_xpos('robotiq_85_base_link')
         gripper_rotation = np.array([1., 0., 1., 0.])
-        self.sim.data.set_mocap_pos('robot0:mocap', gripper_target)
-        self.sim.data.set_mocap_quat('robot0:mocap', gripper_rotation)
+        #self.sim.data.set_mocap_pos('robot0:mocap', gripper_target)
+        #self.sim.data.set_mocap_quat('robot0:mocap', gripper_rotation)
         for _ in range(10):
             self.sim.step()
 
         # Extract information for sampling goals.
-        self.initial_gripper_xpos = self.sim.data.get_site_xpos('robot0:grip').copy()
+        #self.initial_gripper_xpos = self.sim.data.get_site_xpos('robotiq_85_base_link').copy()
         if self.has_object:
             self.height_offset = self.sim.data.get_site_xpos('object0')[2]
 

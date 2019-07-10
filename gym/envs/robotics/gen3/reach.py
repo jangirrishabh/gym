@@ -10,9 +10,9 @@ MODEL_XML_PATH = os.path.join('gen3', 'gen3_reach.xml')
 class Gen3ReachEnv(gen3_env.Gen3Env, utils.EzPickle):
     def __init__(self, reward_type='sparse'):
         initial_qpos = {
-            'robot0:slide0': 0.4049,
-            'robot0:slide1': 0.48,
-            'robot0:slide2': 0.0,
+            # 'robot0:slide0': 0.4049,
+            # 'robot0:slide1': 0.48,
+            # 'robot0:slide2': 0.0,
         }
         gen3_env.Gen3Env.__init__(
             self, MODEL_XML_PATH, has_object=False, block_gripper=True, n_substeps=20,
