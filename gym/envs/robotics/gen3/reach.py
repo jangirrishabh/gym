@@ -4,7 +4,7 @@ from gym.envs.robotics import gen3_env
 
 
 # Ensure we get the path separator correct on windows
-MODEL_XML_PATH = os.path.join('gen3', 'gen3_reach.xml')
+MODEL_XML_PATH = os.path.join('gen3', 'reach.xml')
 
 
 class Gen3ReachEnv(gen3_env.Gen3Env, utils.EzPickle):

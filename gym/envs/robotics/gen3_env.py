@@ -63,8 +63,8 @@ class Gen3Env(robot_env.RobotEnv):
 
     def _step_callback(self):
         if self.block_gripper:
-            #self.sim.data.set_joint_qpos('robot0:l_gripper_finger_joint', 0.)
-            #self.sim.data.set_joint_qpos('robot0:r_gripper_finger_joint', 0.)
+            #self.sim.data.set_joint_qpos('robot1:l_gripper_finger_joint', 0.)
+            #self.sim.data.set_joint_qpos('robot1:r_gripper_finger_joint', 0.)
             self.sim.forward()
 
     def _set_action(self, action):
@@ -91,9 +91,9 @@ class Gen3Env(robot_env.RobotEnv):
             'desired_goal': self.np_random.uniform(-0.15, 0.15, size=3)
         }
         # # positions
-        # grip_pos = self.sim.data.get_site_xpos('robot0:grip')
+        # grip_pos = self.sim.data.get_site_xpos('robot1:grip')
         # dt = self.sim.nsubsteps * self.sim.model.opt.timestep
-        # grip_velp = self.sim.data.get_site_xvelp('robot0:grip') * dt
+        # grip_velp = self.sim.data.get_site_xvelp('robot1:grip') * dt
         # robot_qpos, robot_qvel = utils.robot_get_obs(self.sim)
         # if self.has_object:
         #     object_pos = self.sim.data.get_site_xpos('object0')
@@ -126,7 +126,7 @@ class Gen3Env(robot_env.RobotEnv):
         # }
 
     def _viewer_setup(self):
-        body_id = self.sim.model.body_name2id('robotiq_85_base_link')
+        body_id = self.sim.model.body_name2id('robot1:robotiq_85_base_link')
         lookat = self.sim.data.body_xpos[body_id]
         for idx, value in enumerate(lookat):
             self.viewer.cam.lookat[idx] = value
@@ -182,8 +182,8 @@ class Gen3Env(robot_env.RobotEnv):
         # Move end effector into position.
         gripper_target = np.array([-0.498, 0.005, -0.431 + self.gripper_extra_height]) #+ self.sim.data.get_site_xpos('robotiq_85_base_link')
         gripper_rotation = np.array([1., 0., 1., 0.])
-        #self.sim.data.set_mocap_pos('robot0:mocap', gripper_target)
-        #self.sim.data.set_mocap_quat('robot0:mocap', gripper_rotation)
+        #self.sim.data.set_mocap_pos('robot1:mocap', gripper_target)
+        #self.sim.data.set_mocap_quat('robot1:mocap', gripper_rotation)
         for _ in range(10):
             self.sim.step()
 

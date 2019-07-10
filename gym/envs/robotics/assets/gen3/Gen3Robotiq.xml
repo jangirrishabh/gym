@@ -1,6 +1,4 @@
 <mujoco>
-
-
 	<body name="Base_Link" pos="0 0 0">
 		<inertial pos="-0.000648 -0.000166 0.084487" mass="1.697353" fullinertia="0.004622 0.004495 0.002079 -9E-06 -6E-05 -9E-06"/>
 		<geom type="mesh" rgba="0.79216 0.81961 0.93333 1" mesh="Base_Link"/>
