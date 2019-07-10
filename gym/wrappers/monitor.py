@@ -29,6 +29,7 @@ class Monitor(Wrapper):
     def step(self, action):
         self._before_step(action)
         observation, reward, done, info = self.env.step(action)
+        self.env.render('human')
         done = self._after_step(observation, reward, done, info)
 
         return observation, reward, done, info
