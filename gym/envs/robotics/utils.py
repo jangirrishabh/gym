@@ -26,14 +26,16 @@ def ctrl_set_action(sim, action):
     """
     if sim.model.nmocap > 0:
         _, action = np.split(action, (sim.model.nmocap * 7, ))
+    # print(action)
     if sim.data.ctrl is not None:
         for i in range(action.shape[0]):
-            if i < len(sim.model.actuator_biastype):
-                if sim.model.actuator_biastype[i] == 0:
-                    sim.data.ctrl[i] = action[i]
-                else:
-                    idx = sim.model.jnt_qposadr[sim.model.actuator_trnid[i, 0]]
-                    sim.data.ctrl[i] = sim.data.qpos[idx] + action[i]
+            # if i < len(sim.model.actuator_biastype):
+
+            if sim.model.actuator_biastype[i] == 0:
+                sim.data.ctrl[i] = action[i]
+            else:
+                idx = sim.model.jnt_qposadr[sim.model.actuator_trnid[i, 0]]
+                sim.data.ctrl[i] = sim.data.qpos[idx] + action[i]
 
 
 def mocap_set_action(sim, action):
@@ -48,6 +50,7 @@ def mocap_set_action(sim, action):
     if sim.model.nmocap > 0:
         action, _ = np.split(action, (sim.model.nmocap * 7, ))
         action = action.reshape(sim.model.nmocap, 7)
+        print(action)
 
         pos_delta = action[:, :3]
         quat_delta = action[:, 3:]
