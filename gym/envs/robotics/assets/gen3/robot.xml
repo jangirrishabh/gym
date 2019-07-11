@@ -79,6 +79,7 @@
 												<body name="robot1:left_inner_finger" pos="0.0127 0 0.0693075">
 													<inertial pos="0.00602756 0 0.00669926"  quat="0.699065 0.106339 0.106339 0.699065" mass="0.00724255" diaginertia="1.70064e-06 1.58577e-06 3.69621e-07"></inertial>
 													<geom mesh="robot1:inner_finger_coarse" name="robot1:left_inner_finger" friction="0.8 0.8 0.8" material="robot1:gripper_finger_mat" class="robot1:black"></geom>
+													<joint axis="1 0 0" name="robot1:left_inner_finger_joint" range="0 0.05"></joint>
 												</body>
 											</body>
 											
@@ -88,6 +89,7 @@
 												<body name="robot1:right_inner_finger" pos="0.034106 0 0.0458574">
 													<inertial pos="0.00602756 0 0.00669926"  quat="0.699065 0.106339 0.106339 0.699065" mass="0.00724255" diaginertia="1.70064e-06 1.58577e-06 3.69621e-07"></inertial>
 													<geom mesh="robot1:inner_finger_coarse" name="robot1:right_inner_finger" friction="0.8 0.8 0.8" material="robot1:gripper_finger_mat" class="robot1:black"></geom>
+													<joint axis="-1 0 0" name="robot1:right_inner_finger_joint" range="0 0.05"></joint>
 												</body>
 											</body>
 
@@ -97,6 +99,7 @@
 												<body name="robot1:right_outer_finger" pos="0.0317096 0 -0.00160136">
 													<inertial pos="0.00108844 0 0.021553"  quat="0.999682 0 -0.0252262 0" mass="0.0273094" diaginertia="8.53972e-06 6.91333e-06 2.22664e-06"></inertial>
 													<geom mesh="robot1:outer_finger_coarse" name="robot1:right_outer_finger" friction="0.8 0.8 0.8" material="robot1:gripper_finger_mat" class="robot1:black"></geom>
+													
 												</body>
 											</body>
 <!-- 											<body childclass="robot1:robotiqGripper" name="robot1:r_gripper_finger_link" pos="0 0.0159 0">
