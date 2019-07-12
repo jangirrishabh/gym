@@ -67,7 +67,7 @@
 
 										<body name="robot1:robotiq_85_base_link" pos="0 0 0" quat="0.707105 -0.707108 0 0">
 											<inertial pos="0.00021987 -2.3546e-10 0.030163" quat="0.707058 0.00723369 0.00723345 0.707081" mass="0.30915" diaginertia="0.00030737 0.000289758 0.000199102"></inertial>
-											<geom mesh="robot1:robotiq_85_base_link_coarse" name="robot1:robotiq_85_base_link_mesh" friction="0.8 0.8 0.8" material="GriMat"></geom>
+											<geom mesh="robot1:robotiq_85_base_link" name="robot1:robotiq_85_base_link_mesh" friction="0.8 0.8 0.8" material="GriMat"></geom>
 
 											<body name="right_driver" pos="0 -0.0306011 0.054904" quat="0.707107 0 -0.707107 0">
 												<geom name="right_driver_mesh" type="mesh" mesh="robot1:robotiq_85_knuckle_link" material="GriMat" contype="0" conaffinity="0" />
