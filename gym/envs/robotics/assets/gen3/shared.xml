@@ -34,6 +34,7 @@
         <mesh name="robot1:inner_finger_coarse" file="robotiq/inner_finger_coarse.stl"/>
 
         <!-- Robotiq Hand Meshes(Finer) from robotiq-UR5 -->
+        <mesh name="robot1:kinova_robotiq_coupler" file="robotiq/kinova_robotiq_coupler.stl" />
         <mesh name="robot1:robotiq_85_base_link" file="robotiq/robotiq_85_base_link.stl" />
         <mesh name="robot1:robotiq_85_finger_tip_link" file="robotiq/robotiq_85_finger_tip_link.stl" />
         <mesh name="robot1:robotiq_85_finger_link" file="robotiq/robotiq_85_finger_link.stl" />
@@ -61,8 +62,8 @@
     </asset>
 
     <equality>
-        <!-- <weld body1="robot1:mocap" body2="robot1:ee_link" solimp="0.9 0.95 0.001" solref="0.02 1"></weld> -->
-        <weld body1="robot1:mocap" body2="robot1:robotiq_85_base_link" solimp="0.9 0.95 0.001" solref="0.02 1"></weld>
+        <weld body1="robot1:mocap" body2="robot1:ee_link" solimp="0.9 0.95 0.001" solref="0.02 1"></weld>
+        <!-- <weld body1="robot1:mocap" body2="robot1:robotiq_85_base_link" solimp="0.9 0.95 0.001" solref="0.02 1"></weld> -->
     </equality>
     
 <!--     <contact>
@@ -77,7 +78,8 @@
             <joint armature="1" damping="50" frictionloss="0" stiffness="0"></joint>
             
             <default class="robot1:robotiqGripper">
-                <geom condim="4" margin="0.001" type="box" user="0" rgba="0.356 0.361 0.376 1.0"></geom>
+                <!-- <geom condim="4" margin="0.001" type="box" user="0" rgba="0.356 0.361 0.376 1.0"></geom> -->
+                <geom condim="4" margin="0.001" type="box" user="0" rgba="0.1 0.1 0.1 1"></geom>
                 <joint armature="100" damping="1000" limited="true" solimplimit="0.99 0.999 0.01" solreflimit="0.01 1" type="slide"></joint>
             </default>
 
