@@ -24,8 +24,8 @@
 	<actuator>
 		<!-- <position ctrllimited="true" ctrlrange="0 0.2" joint="robot1:left_inner_finger_joint" kp="30000" name="robot1:left_inner_finger_joint" user="1"></position>
 		<position ctrllimited="true" ctrlrange="0 0.2" joint="robot1:right_inner_finger_joint" kp="30000" name="robot1:right_inner_finger_joint" user="1"></position> -->
-		<motor name="close_1" joint="joint7_1" gear="0.2 0 0 0 0 0" />
-        <motor name="close_2" joint="joint7_2" gear="0.2 0 0 0 0 0" />
+		<!-- <motor name="close_1" joint="joint7_1" gear="0.2 0 0 0 0 0" /> -->
+        <!-- <motor name="close_2" joint="joint7_2" gear="0.2 0 0 0 0 0" /> -->
 
 	</actuator>
 </mujoco>
