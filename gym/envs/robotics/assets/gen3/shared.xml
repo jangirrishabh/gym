@@ -8,12 +8,8 @@
         <material name="block_mat" specular="0" shininess="0.5" reflectance="0" rgba="0.2 0.2 0.2 1"></material>
         <material name="puck_mat" specular="0" shininess="0.5" reflectance="0" rgba="0.2 0.2 0.2 1"></material>
         <material name="robot1:geomMat" shininess="0.03" specular="0.4"></material>
-        <material name="robot1:gripper_finger_mat" shininess="0.03" specular="0.4" reflectance="0"></material>
-        <material name="robot1:gripper_mat" shininess="0.03" specular="0.4" reflectance="0"></material>
+        <material name="robot1:gripper_mat" shininess="0.5" specular="0.9" reflectance="0"></material>
         <material name="robot1:arm_mat" shininess="0.03" specular="0.4" reflectance="0"></material>
-        <material name="robot1:head_mat" shininess="0.03" specular="0.4" reflectance="0"></material>
-        <material name="robot1:torso_mat" shininess="0.03" specular="0.4" reflectance="0"></material>
-        <material name="robot1:base_mat" shininess="0.03" specular="0.4" reflectance="0"></material>
 
         <material name="Light" specular="0" shininess="0.6" reflectance="0.9" rgba="0.5 0.5 1 1" emission="0.7" />
         <material name="GriMat" specular="0.9" shininess="0.5" reflectance="0" rgba="0.1 0.1 0.1 1" emission="0.1" />
