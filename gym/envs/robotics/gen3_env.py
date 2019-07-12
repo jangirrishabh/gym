@@ -2,6 +2,12 @@ import numpy as np
 
 from gym.envs.robotics import rotations, robot_env, utils
 
+DEBUG = False
+closed_pos = [1.12810781, -0.59798289, -0.53003607]
+
+def debug(msg, data):
+    if DEBUG:
+        print(msg, data)
 
 def goal_distance(goal_a, goal_b):
     assert goal_a.shape == goal_b.shape
@@ -34,7 +40,8 @@ class Gen3Env(robot_env.RobotEnv):
             reward_type ('sparse' or 'dense'): the reward type, i.e. sparse or dense
         """
         self.gripper_extra_height = gripper_extra_height
-        self.block_gripper = block_gripper
+        # self.block_gripper = block_gripper
+        self.block_gripper = True
         self.has_object = has_object
         self.target_in_the_air = target_in_the_air
         self.target_offset = target_offset
@@ -53,6 +60,7 @@ class Gen3Env(robot_env.RobotEnv):
     def compute_reward(self, achieved_goal, goal, info):
         # Compute distance between goal and the achieved goal.
         d = goal_distance(achieved_goal, goal)
+        debug("\tdistance to goal: ", d)
         if self.reward_type == 'sparse':
             return -(d > self.distance_threshold).astype(np.float32)
         else:
@@ -63,8 +71,11 @@ class Gen3Env(robot_env.RobotEnv):
 
     def _step_callback(self):
         if self.block_gripper:
-            # self.sim.data.set_joint_qpos('robot1:l_gripper_finger_joint', 0.)
-            # self.sim.data.set_joint_qpos('robot1:r_gripper_finger_joint', 0.)
+            for j in range(3):
+                self.sim.data.qpos[7 + j] = closed_pos[j]
+                self.sim.data.qpos[11 + j] = closed_pos[j]
+            # self.sim.data.set_joint_qpos('joint7_1', 0.8)
+            # self.sim.data.set_joint_qpos('joint7_2', 0.8)
             self.sim.forward()
 
     def _set_action(self, action):
