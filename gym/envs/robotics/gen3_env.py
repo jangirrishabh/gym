@@ -1,9 +1,11 @@
 import numpy as np
 
 from gym.envs.robotics import rotations, robot_env, utils
+import math
 
 DEBUG = False
-closed_pos = [1.12810781, -0.59798289, -0.53003607]
+# closed_pos = [1.12810781, -0.59798289, -0.53003607]
+closed_angle = 0.45
 
 def debug(msg, data):
     if DEBUG:
@@ -40,8 +42,7 @@ class Gen3Env(robot_env.RobotEnv):
             reward_type ('sparse' or 'dense'): the reward type, i.e. sparse or dense
         """
         self.gripper_extra_height = gripper_extra_height
-        # self.block_gripper = block_gripper
-        self.block_gripper = True
+        self.block_gripper = block_gripper
         self.has_object = has_object
         self.target_in_the_air = target_in_the_air
         self.target_offset = target_offset
@@ -66,16 +67,33 @@ class Gen3Env(robot_env.RobotEnv):
         else:
             return -d
 
+    # Gripper helper
+    # ----------------------------
+    def _gripper_sync(self):
+        # move the left_spring_joint joint[14] and right_spring_joint(joint[10]) in the right angle
+        self.sim.data.qpos[10] = self._gripper_consistent(self.sim.data.qpos[7: 10])
+        self.sim.data.qpos[14] = self._gripper_consistent(self.sim.data.qpos[11: 14])
+
+    def _gripper_consistent(self, angle):
+        x = -0.006496 + 0.0315 * math.sin(angle[0]) + 0.04787744772 * math.cos(angle[0] + angle[1] - 0.1256503306) - 0.02114828598 * math.sin(angle[0] + angle[1] + angle[2] - 0.1184899592)
+        y = -0.0186011 - 0.0315 * math.cos(angle[0]) + 0.04787744772 * math.sin(angle[0] + angle[1] - 0.1256503306) + 0.02114828598 * math.cos(angle[0] + angle[1] + angle[2] - 0.1184899592)
+        return math.atan2(y, x) + 0.6789024115
+    
     # RobotEnv methods
     # ----------------------------
 
     def _step_callback(self):
         if self.block_gripper:
-            for j in range(3):
-                self.sim.data.qpos[7 + j] = closed_pos[j]
-                self.sim.data.qpos[11 + j] = closed_pos[j]
-            # self.sim.data.set_joint_qpos('joint7_1', 0.8)
-            # self.sim.data.set_joint_qpos('joint7_2', 0.8)
+            # for j in range(3):
+            #     self.sim.data.qpos[7 + j] = closed_pos[j]
+            #     self.sim.data.qpos[11 + j] = closed_pos[j]
+            self.sim.data.set_joint_qpos('robot1:right_knuckle_joint', closed_angle)
+            self.sim.data.set_joint_qpos('robot1:left_knuckle_joint', closed_angle)
+            self._gripper_sync()
+            self.sim.forward()
+        else:
+            # sync the spring link
+            self._gripper_sync()
             self.sim.forward()
 
     def _set_action(self, action):
@@ -88,6 +106,7 @@ class Gen3Env(robot_env.RobotEnv):
         gripper_ctrl = np.array([gripper_ctrl, gripper_ctrl])
         assert gripper_ctrl.shape == (2,)
         if self.block_gripper:
+            print("Block the gripper position")
             gripper_ctrl = np.zeros_like(gripper_ctrl)
         action = np.concatenate([pos_ctrl, rot_ctrl, gripper_ctrl])
 
@@ -96,6 +115,8 @@ class Gen3Env(robot_env.RobotEnv):
         utils.mocap_set_action(self.sim, action)
 
     def _get_obs(self):
+        """ returns the observations dict """
+        # returns dummy numbers
         return {
             'observation': self.np_random.uniform(-0.15, 0.15, size=3),
             'achieved_goal': self.np_random.uniform(-0.15, 0.15, size=3),

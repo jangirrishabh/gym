@@ -29,8 +29,6 @@ def ctrl_set_action(sim, action):
     # print(action)
     if sim.data.ctrl is not None:
         for i in range(action.shape[0]):
-            # if i < len(sim.model.actuator_biastype):
-
             if sim.model.actuator_biastype[i] == 0:
                 sim.data.ctrl[i] = action[i]
             else:
