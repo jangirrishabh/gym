@@ -1,10 +1,12 @@
 import os
 import copy
 import numpy as np
-
+import cv2
 import gym
 from gym import error, spaces
 from gym.utils import seeding
+
+from mujoco_py.modder import TextureModder, MaterialModder, LightModder
 
 try:
     import mujoco_py
@@ -24,13 +26,23 @@ class RobotEnv(gym.GoalEnv):
 
         model = mujoco_py.load_model_from_path(fullpath)
         self.sim = mujoco_py.MjSim(model, nsubsteps=n_substeps)
-        self.viewer = None
+        self.viewer = None # comment when using "human"
+        #self.viewer = mujoco_py.MjViewer(self.sim) #comment when using "rgb_array"
         self._viewers = {}
+        
+        self.modder = TextureModder(self.sim)
+        self.visual_randomize = True
+        self.mat_modder = MaterialModder(self.sim)
+        self.light_modder = LightModder(self.sim)
 
         self.metadata = {
             'render.modes': ['human', 'rgb_array'],
             'video.frames_per_second': int(np.round(1.0 / self.dt))
         }
+
+        self.visual_data_recording = True
+        self._index = 0
+        self._label_matrix = []
 
         self.seed()
         self._env_setup(initial_qpos=initial_qpos)
@@ -44,6 +56,8 @@ class RobotEnv(gym.GoalEnv):
             achieved_goal=spaces.Box(-np.inf, np.inf, shape=obs['achieved_goal'].shape, dtype='float32'),
             observation=spaces.Box(-np.inf, np.inf, shape=obs['observation'].shape, dtype='float32'),
         ))
+        if self.viewer:
+            self._viewer_setup()
 
     @property
     def dt(self):
@@ -66,8 +80,9 @@ class RobotEnv(gym.GoalEnv):
         done = False
         info = {
             'is_success': self._is_success(obs['achieved_goal'], self.goal),
-        }
+        }   
         reward = self.compute_reward(obs['achieved_goal'], self.goal, info)
+        #print("REWARD", reward ," and IS SUCCESS ", info['is_success'])
         return obs, reward, done, info
 
     def reset(self):
@@ -80,6 +95,16 @@ class RobotEnv(gym.GoalEnv):
         did_reset_sim = False
         while not did_reset_sim:
             did_reset_sim = self._reset_sim()
+        #Visual randomization
+        if self.visual_randomize:
+            self.light_modder.rand_all('light0')
+            for name in self.sim.model.geom_names:
+                self.modder.whiten_materials()
+                self.modder.set_checker(name, (255, 0, 0), (0, 0, 0))
+                self.modder.rand_all(name)
+                self.mat_modder.rand_all(name)
+            self.modder.set_checker('skin', (255, 0, 0), (0, 0, 0))
+            self.modder.rand_all('skin')
         self.goal = self._sample_goal().copy()
         obs = self._get_obs()
         return obs
@@ -98,6 +123,7 @@ class RobotEnv(gym.GoalEnv):
             data = self._get_viewer(mode).read_pixels(width, height, depth=False)
             # original image is upside-down, so flip it
             return data[::-1, :, :]
+            #return None
         elif mode == 'human':
             self._get_viewer(mode).render()
 
@@ -107,7 +133,8 @@ class RobotEnv(gym.GoalEnv):
             if mode == 'human':
                 self.viewer = mujoco_py.MjViewer(self.sim)
             elif mode == 'rgb_array':
-                self.viewer = mujoco_py.MjRenderContextOffscreen(self.sim, device_id=-1)
+                device_id = self.sim.model.camera_name2id('camera1')
+                self.viewer = mujoco_py.MjRenderContextOffscreen(self.sim, device_id=device_id)
             self._viewer_setup()
             self._viewers[mode] = self.viewer
         return self.viewer
@@ -121,6 +148,7 @@ class RobotEnv(gym.GoalEnv):
         simulation), this method should indicate such a failure by returning False.
         In such a case, this method will be called again to attempt a the reset again.
         """
+
         self.sim.set_state(self.initial_state)
         self.sim.forward()
         return True

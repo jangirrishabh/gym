@@ -1,8 +1,19 @@
 import numpy as np
+import os
+import copy
 
 from gym.envs.robotics import rotations, robot_env, utils
+from gym.envs.robotics.rotations import mat2euler, mat2quat, quat2euler, euler2quat
+import gym
 import math
 from random import randint
+
+import xml.etree.ElementTree as et
+
+import mujoco_py
+from mujoco_py.modder import TextureModder, MaterialModder
+import cv2
+import matplotlib.pyplot as plt
 
 DEBUG = False
 closed_pos = [1.12810781, -0.59798289, -0.53003607]
@@ -17,14 +28,14 @@ def goal_distance(goal_a, goal_b):
     return np.linalg.norm(goal_a - goal_b, axis=-1)
 
 
-class Gen3Env(robot_env.RobotEnv):
+class RandomizedGen3Env(robot_env.RobotEnv):
     """Superclass for all Kinova Gen3 environments.
     """
 
     def __init__(
         self, model_path, n_substeps, gripper_extra_height, block_gripper,
         has_object, has_cloth, target_in_the_air, target_offset, obj_range, target_range,
-        distance_threshold, cloth_length, behavior, initial_qpos, reward_type,
+        distance_threshold, cloth_length, behavior, initial_qpos, reward_type, **kwargs,
     ):
         """Initializes a new Kinova Gen3 environment.
 
@@ -53,16 +64,182 @@ class Gen3Env(robot_env.RobotEnv):
         self.distance_threshold = distance_threshold
         self.reward_type = reward_type
         self.has_cloth = has_cloth
+        self.config_file = kwargs.get('config')
 
         self.num_vertices = 4
         self.cloth_length = cloth_length
         self.randomize_cloth = 0.1
         self.behavior = behavior
-        self.explicit_policy = False
-
-        super(Gen3Env, self).__init__(
+        self.explicit_policy = True
+        self.physical_params = [4.00000000e-03, 8.00000000e-03, 1.40000000e+00, 3.00000000e-03, 1.00000000e-03, 2.00000000e-03, 1.00000000e-03, 1.00000000e-02, 3.00000000e-02, 1.10000000e+01]
+        super(RandomizedGen3Env, self).__init__(
             model_path=model_path, n_substeps=n_substeps, n_actions=4,
             initial_qpos=initial_qpos)
+
+        # randomization
+        self.config_file = kwargs.get('config')
+        self.xml_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets", "gen3")
+        self.reference_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets", "gen3", kwargs.get('xml_name'))
+        self.reference_xml = et.parse(self.reference_path)
+        self.dimensions = []
+        self.dimension_map = []
+        self.suffixes = []
+        self._locate_randomize_parameters()
+        self.initial_qpos = initial_qpos
+        self.n_substeps = n_substeps
+
+
+    # Randomization methods
+    # ----------------------------
+    def _locate_randomize_parameters(self):
+        self.root = self.reference_xml.getroot()
+        #locate all the randomization parameters you wish to randomize
+        #self.object_joints = self.root.findall(".//body[@name='object0']/joint")
+        #self.cloth = self.root.findall(".//body[@name='CB0_10']/composite")
+        cloth = self.root.findall(".//body[@name='CB0_10']")[0] # list of all the composite objects
+        self.composites = cloth.findall("./composite")
+        # Initialize values for all physical parameters
+        # for dim in self.unwrapped.dimensions:
+        #     self.physical_params.append(dim.current_value)
+        # print("physical_params", self.physical_params)
+
+
+    def _randomize_size(self):
+        size = self.dimensions[0].current_value
+        #print("Size to change to", size)
+        
+        for composite in self.composites:
+            geom = composite.findall("./geom")[0]
+            geom.set('size', '{:3f}'.format(size))
+
+    def _randomize_mass(self):
+        mass = self.dimensions[1].current_value
+        #print("Mass to change to", mass)
+        
+        for composite in self.composites:
+            geom = composite.findall("./geom")[0]
+            geom.set('mass', '{:3f}'.format(mass))
+
+    def _randomize_friction(self):
+        friction = self.dimensions[2].current_value
+        #print("Friction to change to",friction)
+        
+        for composite in self.composites:
+            geom = composite.findall("./geom")[0]
+            #print("friction actual", geom.get('friction'))
+            geom.set('friction', '{:3f}{:f}{:f}'.format(friction, 0.005, 0.001))
+
+    def _randomize_joint_damping(self):
+        joint_damping = self.dimensions[3].current_value
+        #print("joint_damping to change to", joint_damping)
+        
+        for composite in self.composites:
+            joint = composite.findall("./joint")[0]
+            joint.set('damping', '{:3f}'.format(joint_damping))
+
+    def _randomize_joint_stiffness(self):
+        joint_stiffness = self.dimensions[4].current_value
+        #print("joint_stiffness to change to", joint_stiffness)
+        
+        for composite in self.composites:
+            joint = composite.findall("./joint")[0]
+            joint.set('stiffness', '{:3f}'.format(joint_stiffness))
+
+    def _randomize_tendon_damping(self):
+        tendon_damping = self.dimensions[5].current_value
+        #print("tendon_damping to change to", tendon_damping)
+        
+        for composite in self.composites:
+            tendon = composite.findall("./tendon")[0]
+            tendon.set('damping', '{:3f}'.format(tendon_damping))
+
+    def _randomize_tendon_stiffness(self):
+        tendon_stiffness = self.dimensions[6].current_value
+        #print("tendon_stiffness to change to", tendon_stiffness)
+        
+        for composite in self.composites:
+            tendon = composite.findall("./tendon")[0]
+            tendon.set('stiffness', '{:3f}'.format(tendon_stiffness))
+
+    def _randomize_flatinertia(self):
+        flatinertia = self.dimensions[7].current_value
+        #print("flatinertia to change to", flatinertia)
+        
+        for composite in self.composites:
+            composite.set('flatinertia', '{:3f}'.format(flatinertia))
+
+    def _randomize_spacing(self):
+        spacing = self.dimensions[8].current_value
+        #print("spacing to change to", spacing)
+        
+        for composite in self.composites:
+            composite.set('spacing', '{:3f}'.format(spacing))
+
+    # def _randomize_cloth_count(self):
+    #     mass = self.dimensions[1].current_value
+    #     print("Mass to change to", mass)
+        
+    #     for composite in self.composites:
+    #         geom = composite.findall("./geom")[0]
+    #         geom.set('mass', '{:3f}'.format(mass))
+
+    def _create_xml(self):
+        self._randomize_size()
+        self._randomize_mass()
+        self._randomize_spacing()
+        self._randomize_flatinertia()
+        self._randomize_joint_damping()
+        self._randomize_joint_stiffness()
+        self._randomize_tendon_damping()
+        self._randomize_tendon_stiffness()
+        self._randomize_friction()
+        return et.tostring(self.root, encoding='unicode', method='xml')
+
+    def update_randomized_params(self):
+        xml = self._create_xml()
+        self._re_init(xml)
+        # update values for all physical parameters
+        self.physical_params = []
+        for dim in self.unwrapped.dimensions:
+            self.physical_params.append(dim.current_value)
+
+    def _re_init(self, xml):
+        # TODO: Now, likely needs rank
+        randomized_path = os.path.join(self.xml_dir, "randomizedgen3.xml")
+        
+        
+        with open(randomized_path, 'wb') as fp:
+            fp.write(xml.encode())
+            fp.flush()
+        
+        try:
+            self.model = mujoco_py.load_model_from_path(randomized_path)
+        except:
+            print("Unable to load the xml file")
+        
+        self.sim = mujoco_py.MjSim(self.model, nsubsteps=self.n_substeps)
+
+        self.modder = TextureModder(self.sim)
+        self.visual_randomize = True
+
+        self.metadata = {
+            'render.modes': ['human', 'rgb_array'],
+            'video.frames_per_second': int(np.round(1.0 / self.dt))
+        }
+
+        self._env_setup(initial_qpos=self.initial_qpos)
+        self.initial_state = copy.deepcopy(self.sim.get_state())
+
+
+        # self.initial_state = copy.deepcopy(self.sim.get_state())
+        # self.data = self.sim.data
+        # self.init_qpos = self.data.qpos.ravel().copy()
+        # self.init_qvel = self.data.qvel.ravel().copy()
+        # # observation = self.reset()
+        # #observation, _reward, done, _info = self.step(np.zeros(4))
+        # #assert not done
+        if self.viewer:
+            self.viewer.update_sim(self.sim)
 
     # GoalEnv methods
     # ----------------------------
@@ -255,13 +432,55 @@ class Gen3Env(robot_env.RobotEnv):
         # obs = np.concatenate([
         #     grip_pos, gripper_state, grip_velp, gripper_vel, vertice_pos[0], vertice_pos[1], vertice_pos[2], vertice_pos[3],
         # ])
+        # Creating dataset for Visual policy training
+        self._render_callback()
+        self.viewer = self._get_viewer('rgb_array')
+        HEIGHT, WIDTH = 256, 256
+        self.viewer.render(HEIGHT, WIDTH)
+        visual_data = self.viewer.read_pixels(HEIGHT, WIDTH, depth=False)
+        # original image is upside-down, so flip it
+        visual_data =  cv2.UMat(visual_data[::-1, :, :])
+        # if self.visual_data_recording:
+        #     name = "/home/rjangir/Pictures/kinova_dataset/" + str(vertice_pos[0])+ str(vertice_pos[1]) + ".jpg"
+        #     cv2.imwrite(name, visual_data)
     
+        #Save vertice labels
+        vertice_pos_labels = [vertice_pos[0], vertice_pos[1], vertice_pos[2], vertice_pos[3]]
+        label = []
+        #convert these points to 2D
+        s = 1 # std for heatmap signal
         
+        output_size = [HEIGHT, WIDTH]
+        fov = 45 #field of view of camera
+        cam_name = 'camera1'
+        cam_pos = self.sim.data.get_camera_xpos(cam_name)
+        cam_ori = gym.envs.robotics.rotations.mat2euler(self.sim.data.get_camera_xmat(cam_name))
+        for v in vertice_pos_labels:
+            label.append(utils.global2label(v , cam_pos, cam_ori, output_size, fov=fov, s=s))
+
+        
+        # for point in label:
+        #     cv2.circle(visual_data, (int(point[0]), int(point[1])), 3, (0, 0, 255), 5)
+        
+        if self.visual_data_recording:
+            name = "/home/rjangir/workSpace/IRI-DL/datasets/sim2real/train/" + "image_" +str(self._index) + ".jpg"
+            cv2.imwrite(name, visual_data)
+
+        label_data = np.array([label[0], label[1], label[2], label[3]])
+        self._label_matrix.append(label_data)
+        label_file = "/home/rjangir/workSpace/IRI-DL/datasets/sim2real/train/" + "train_ids" + ".npy"
+        if np.asarray(self._label_matrix).shape[0] == 1000:
+            print("saving the labels file")
+            np.save(label_file, np.asarray(self._label_matrix), allow_pickle=True )
         obs = np.concatenate([
             grip_pos, gripper_state, grip_velp, vertice_pos[0], vertice_pos[1], vertice_pos[2], vertice_pos[3], vertice_velp[0], vertice_velp[1], vertice_velp[2], vertice_velp[3], 
         ])
-        
-
+        if self.explicit_policy:
+            obs = np.concatenate([
+                obs,  np.array(self.physical_params),
+            ])
+            
+        self._index += 1
         return {
             'observation': obs.copy(),
             'achieved_goal': achieved_goal.copy(),
@@ -269,18 +488,23 @@ class Gen3Env(robot_env.RobotEnv):
         }
 
     def _viewer_setup(self):
-        body_id = self.sim.model.body_name2id('robot1:ee_link')
-        #body_id = self.sim.model.body_name2id('robot1:robotiq_85_base_link')
-        lookat = self.sim.data.body_xpos[body_id]
-        for idx, value in enumerate(lookat):
-            self.viewer.cam.lookat[idx] = value
-        self.viewer.cam.distance = 4.0
-        self.viewer.cam.azimuth = 132.
-        self.viewer.cam.elevation = -14.
+        self.viewer._show_mocap = False
+
+        self.viewer.cam.fixedcamid = 0
+        self.viewer.cam.type = mujoco_py.generated.const.CAMERA_FIXED
+
+        # body_id = self.sim.model.body_name2id('table0')
+        # #body_id = self.sim.model.body_name2id('robot1:robotiq_85_base_link')
+        # lookat = self.sim.data.body_xpos[body_id]
+        # for idx, value in enumerate(lookat):
+        #     self.viewer.cam.lookat[idx] = value
+        # self.viewer.cam.distance = 1.3
+        # self.viewer.cam.azimuth = 180.
+        # self.viewer.cam.elevation = -45.
 
     def _render_callback(self):
         # Visualize target.
-        if self.behavior=="sideways":
+        if self.behavior=="sideways" and self.visual_data_recording == False:
             sites_offset = (self.sim.data.site_xpos - self.sim.model.site_pos).copy()
             targets = ['target0', 'target1']
             site_ids = []
@@ -288,7 +512,7 @@ class Gen3Env(robot_env.RobotEnv):
                 site_ids.append(self.sim.model.site_name2id(targets[x]))
                 self.sim.model.site_pos[site_ids[x]] = self.goal[x*3:x*3+3] - sites_offset[0]
             self.sim.forward()
-        else:
+        elif self.visual_data_recording == False:
             sites_offset = (self.sim.data.site_xpos - self.sim.model.site_pos).copy()
             site_id = self.sim.model.site_name2id('target0')
             self.sim.model.site_pos[site_id] = self.goal - sites_offset[0]
@@ -321,6 +545,15 @@ class Gen3Env(robot_env.RobotEnv):
             gripper_ctrl = np.array([0.0, 0.0])
             utils.grasp(self.sim, gripper_ctrl, 'CB0_0')
             self.sim.data.set_joint_qpos('cloth', new_position)
+
+        # if self.visual_randomize:
+        #     for name in self.sim.model.geom_names:
+        #         self.modder.whiten_materials()
+        #         self.modder.set_checker(name, (255, 0, 0), (0, 0, 0))
+        #         self.modder.rand_all(name)
+        #     self.modder.set_checker('skin', (255, 0, 0), (0, 0, 0))
+        #     self.modder.rand_all('skin')
+        
 
         self.sim.forward()
         return True
@@ -394,4 +627,4 @@ class Gen3Env(robot_env.RobotEnv):
             self.height_offset = self.sim.data.get_site_xpos('object0')[2]
 
     def render(self, mode='human', width=500, height=500):
-        return super(Gen3Env, self).render(mode, width, height)
+        return super(RandomizedGen3Env, self).render(mode, width, height)
