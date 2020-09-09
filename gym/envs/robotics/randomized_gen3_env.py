@@ -11,7 +11,7 @@ from random import randint
 import xml.etree.ElementTree as et
 
 import mujoco_py
-from mujoco_py.modder import TextureModder, MaterialModder
+from mujoco_py.modder import TextureModder, MaterialModder, LightModder, CameraModder
 import cv2
 import matplotlib.pyplot as plt
 
@@ -65,6 +65,11 @@ class RandomizedGen3Env(robot_env.RobotEnv):
         self.reward_type = reward_type
         self.has_cloth = has_cloth
         self.config_file = kwargs.get('config')
+        self.color_from_id = {'0':'red', '1':'green', '2':'yellow', '3':'blue'}
+
+        self.mode = 'rgb_array'
+        self.visual_randomize = False
+        self.visual_data_recording = False
 
         self.num_vertices = 4
         self.cloth_length = cloth_length
@@ -74,7 +79,7 @@ class RandomizedGen3Env(robot_env.RobotEnv):
         self.physical_params = [4.00000000e-03, 8.00000000e-03, 1.40000000e+00, 3.00000000e-03, 1.00000000e-03, 2.00000000e-03, 1.00000000e-03, 1.00000000e-02, 3.00000000e-02, 1.10000000e+01]
         super(RandomizedGen3Env, self).__init__(
             model_path=model_path, n_substeps=n_substeps, n_actions=4,
-            initial_qpos=initial_qpos)
+            initial_qpos=initial_qpos, mode=self.mode, visual_randomize=self.visual_randomize, visual_data_recording=self.visual_data_recording)
 
         # randomization
         self.config_file = kwargs.get('config')
@@ -87,6 +92,8 @@ class RandomizedGen3Env(robot_env.RobotEnv):
         self._locate_randomize_parameters()
         self.initial_qpos = initial_qpos
         self.n_substeps = n_substeps
+
+        
 
 
     # Randomization methods
@@ -106,7 +113,7 @@ class RandomizedGen3Env(robot_env.RobotEnv):
 
     def _randomize_size(self):
         size = self.dimensions[0].current_value
-        #print("Size to change to", size)
+        print("Size to change to", size)
         
         for composite in self.composites:
             geom = composite.findall("./geom")[0]
@@ -127,7 +134,7 @@ class RandomizedGen3Env(robot_env.RobotEnv):
         for composite in self.composites:
             geom = composite.findall("./geom")[0]
             #print("friction actual", geom.get('friction'))
-            geom.set('friction', '{:3f}{:f}{:f}'.format(friction, 0.005, 0.001))
+            geom.set('friction', '{:3f}{:f}{:f}'.format(friction, friction, friction))
 
     def _randomize_joint_damping(self):
         joint_damping = self.dimensions[3].current_value
@@ -184,7 +191,7 @@ class RandomizedGen3Env(robot_env.RobotEnv):
     #         geom.set('mass', '{:3f}'.format(mass))
 
     def _create_xml(self):
-        self._randomize_size()
+        #self._randomize_size()
         self._randomize_mass()
         self._randomize_spacing()
         self._randomize_flatinertia()
@@ -220,8 +227,10 @@ class RandomizedGen3Env(robot_env.RobotEnv):
         self.sim = mujoco_py.MjSim(self.model, nsubsteps=self.n_substeps)
 
         self.modder = TextureModder(self.sim)
-        self.visual_randomize = True
-
+        self.mat_modder = MaterialModder(self.sim)
+        self.light_modder = LightModder(self.sim)
+        self.camera_modder = CameraModder(self.sim)
+            
         self.metadata = {
             'render.modes': ['human', 'rgb_array'],
             'video.frames_per_second': int(np.round(1.0 / self.dt))
@@ -230,14 +239,6 @@ class RandomizedGen3Env(robot_env.RobotEnv):
         self._env_setup(initial_qpos=self.initial_qpos)
         self.initial_state = copy.deepcopy(self.sim.get_state())
 
-
-        # self.initial_state = copy.deepcopy(self.sim.get_state())
-        # self.data = self.sim.data
-        # self.init_qpos = self.data.qpos.ravel().copy()
-        # self.init_qvel = self.data.qvel.ravel().copy()
-        # # observation = self.reset()
-        # #observation, _reward, done, _info = self.step(np.zeros(4))
-        # #assert not done
         if self.viewer:
             self.viewer.update_sim(self.sim)
 
@@ -433,45 +434,82 @@ class RandomizedGen3Env(robot_env.RobotEnv):
         #     grip_pos, gripper_state, grip_velp, gripper_vel, vertice_pos[0], vertice_pos[1], vertice_pos[2], vertice_pos[3],
         # ])
         # Creating dataset for Visual policy training
-        self._render_callback()
-        self.viewer = self._get_viewer('rgb_array')
-        HEIGHT, WIDTH = 256, 256
-        self.viewer.render(HEIGHT, WIDTH)
-        visual_data = self.viewer.read_pixels(HEIGHT, WIDTH, depth=False)
-        # original image is upside-down, so flip it
-        visual_data =  cv2.UMat(visual_data[::-1, :, :])
-        # if self.visual_data_recording:
-        #     name = "/home/rjangir/Pictures/kinova_dataset/" + str(vertice_pos[0])+ str(vertice_pos[1]) + ".jpg"
-        #     cv2.imwrite(name, visual_data)
-    
-        #Save vertice labels
-        vertice_pos_labels = [vertice_pos[0], vertice_pos[1], vertice_pos[2], vertice_pos[3]]
-        label = []
-        #convert these points to 2D
-        s = 1 # std for heatmap signal
-        
-        output_size = [HEIGHT, WIDTH]
-        fov = 45 #field of view of camera
-        cam_name = 'camera1'
-        cam_pos = self.sim.data.get_camera_xpos(cam_name)
-        cam_ori = gym.envs.robotics.rotations.mat2euler(self.sim.data.get_camera_xmat(cam_name))
-        for v in vertice_pos_labels:
-            label.append(utils.global2label(v , cam_pos, cam_ori, output_size, fov=fov, s=s))
-
-        
-        # for point in label:
-        #     cv2.circle(visual_data, (int(point[0]), int(point[1])), 3, (0, 0, 255), 5)
         
         if self.visual_data_recording:
-            name = "/home/rjangir/workSpace/IRI-DL/datasets/sim2real/train/" + "image_" +str(self._index) + ".jpg"
-            cv2.imwrite(name, visual_data)
 
-        label_data = np.array([label[0], label[1], label[2], label[3]])
-        self._label_matrix.append(label_data)
-        label_file = "/home/rjangir/workSpace/IRI-DL/datasets/sim2real/train/" + "train_ids" + ".npy"
-        if np.asarray(self._label_matrix).shape[0] == 1000:
-            print("saving the labels file")
-            np.save(label_file, np.asarray(self._label_matrix), allow_pickle=True )
+            self._render_callback()
+            self.viewer = self._get_viewer('rgb_array')
+            HEIGHT, WIDTH = 256, 256
+            self.viewer.render(HEIGHT, WIDTH)
+            visual_data_all = self.viewer.read_pixels(HEIGHT, WIDTH, depth=True)
+            depth = visual_data_all[1]
+            visual_data = visual_data_all[0]
+            # original image is upside-down, so flip it
+            visual_data =  cv2.UMat(visual_data[::-1, :, :])
+            depth_cv = cv2.normalize(depth[::-1,:], None, 0, 255, cv2.NORM_MINMAX, cv2.CV_8U)    
+
+            #Save vertice labels
+            vertice_pos_labels = [vertice_pos[0], vertice_pos[1], vertice_pos[2], vertice_pos[3]]
+            label = []
+            #convert these points to 2D
+            s = 1 # std for heatmap signal
+            
+            def quaternion_to_euler(x, y, z, w):
+                t0 = +2.0 * (w * x + y * z)
+                t1 = +1.0 - 2.0 * (x * x + y * y)
+                roll = math.atan2(t0, t1)
+                t2 = +2.0 * (w * y - z * x)
+                t2 = +1.0 if t2 > +1.0 else t2
+                t2 = -1.0 if t2 < -1.0 else t2
+                pitch = math.asin(t2)
+                t3 = +2.0 * (w * z + x * y)
+                t4 = +1.0 - 2.0 * (y * y + z * z)
+                yaw = math.atan2(t3, t4)
+                return [pitch, roll, yaw]
+
+            output_size = [HEIGHT, WIDTH]
+            #fov = 45 #field of view of camera
+            cam_name = 'camera1'
+            cam_id = self.sim.model.camera_name2id(cam_name)
+            fov = self.sim.model.cam_fovy[cam_id]
+            cam_pos = self.sim.data.get_camera_xpos(cam_name)
+            #cam_quat = self.sim.model.cam_quat[cam_id]
+            cam_ori = gym.envs.robotics.rotations.mat2euler(self.sim.data.get_camera_xmat(cam_name))
+            #Camera pos and ori  [1.8  0.75 1.2 ] <class 'numpy.ndarray'> [-0.    0.77  1.57] <class 'numpy.ndarray'>
+            vertice_pos_cam = []
+            for v in vertice_pos_labels:
+                label.append(utils.global2label(v , cam_pos, cam_ori, output_size, fov=fov, s=s))
+                vertice_pos_cam.append(v - np.array(cam_pos))
+
+            
+            # for point in label:
+            #     cv2.circle(visual_data, (int(point[0]), int(point[1])), 2, (0, 0, 255), 2)
+        
+            self._label_matrix = []
+            #name = "/home/rjangir/workSpace/IRI-DL/datasets/sim2real/train/" + "image_" +str(self._index) + ".jpg"
+            name = "/home/rjangir/workSpace/sketchbook/pytorch-corner-detection/data/real_images/train_dataset_RL/" + "image_" +str(self._index) + ".png"
+            cv2.imwrite(name, visual_data)
+            #name_d = "/home/rjangir/workSpace/IRI-DL/datasets/sim2real/train/" + "image_depth" +str(self._index) + ".jpg"
+            name_d = "/home/rjangir/workSpace/sketchbook/pytorch-corner-detection/data/real_images/train_dataset_RL/" + "image_depth" +str(self._index) + ".tif"
+            cv2.imwrite(name_d, depth_cv)
+
+            label_data = np.array([label[0], label[1], label[2], label[3]])
+            for l in range(len(label)):
+                color = self.color_from_id[str(l)] 
+                self._label_matrix.append([color, abs(int(label[l][1])), abs(int(label[l][0]))])
+
+            for v in vertice_pos_cam:
+                self._label_matrix.append(v)
+            
+            # label_file = "/home/rjangir/workSpace/IRI-DL/datasets/sim2real/train/" + "train_ids" + ".npy"
+            # if np.asarray(self._label_matrix).shape[0] == 1000:
+            #     print("saving the labels file")
+            #     np.save(label_file, np.asarray(self._label_matrix), allow_pickle=True )
+            #     np.savetxt(path + '.csv', centers, delimiter=",", fmt='%s')
+
+            label_file = "/home/rjangir/workSpace/sketchbook/pytorch-corner-detection/data/real_images/train_dataset_RL/" + "image" +str(self._index)
+            np.savetxt(label_file + '.csv', self._label_matrix, delimiter=",", fmt='%s')
+
         obs = np.concatenate([
             grip_pos, gripper_state, grip_velp, vertice_pos[0], vertice_pos[1], vertice_pos[2], vertice_pos[3], vertice_velp[0], vertice_velp[1], vertice_velp[2], vertice_velp[3], 
         ])
@@ -533,7 +571,8 @@ class RandomizedGen3Env(robot_env.RobotEnv):
             self.sim.data.set_joint_qpos('object0:joint', object_qpos)
         if self.has_cloth:
             if self.behavior=="diagonally":
-                joint_vertice = 'CB'+str(self.cloth_length-1)+'_'+str(self.cloth_length-1)
+                #joint_vertice = 'CB'+str(self.cloth_length-1)+'_'+str(self.cloth_length-1)
+                joint_vertice = 'CB0'+'_'+str(self.cloth_length-1)
             elif self.behavior=="sideways":
                 joint_vertice = 'CB0'+'_'+str(self.cloth_length-1)
             new_position = self.sim.data.get_body_xpos(joint_vertice)
@@ -545,15 +584,6 @@ class RandomizedGen3Env(robot_env.RobotEnv):
             gripper_ctrl = np.array([0.0, 0.0])
             utils.grasp(self.sim, gripper_ctrl, 'CB0_0')
             self.sim.data.set_joint_qpos('cloth', new_position)
-
-        # if self.visual_randomize:
-        #     for name in self.sim.model.geom_names:
-        #         self.modder.whiten_materials()
-        #         self.modder.set_checker(name, (255, 0, 0), (0, 0, 0))
-        #         self.modder.rand_all(name)
-        #     self.modder.set_checker('skin', (255, 0, 0), (0, 0, 0))
-        #     self.modder.rand_all('skin')
-        
 
         self.sim.forward()
         return True
@@ -571,17 +601,17 @@ class RandomizedGen3Env(robot_env.RobotEnv):
                 goal = self.sim.data.get_body_xpos(goal_vertice)
                 # Sample goal according to the cloth_length
                 randomness = self.np_random.uniform(-self.target_range, self.target_range, size=2)
-                goal[0] += randomness[0]
-                goal[1] += randomness[1]
+                #goal[0] += randomness[0]
+                #goal[1] += randomness[1]
                 #goal[2] += 0.06
             elif self.behavior=="sideways":
                 goal_vertices = ['CB0'+'_'+str(self.cloth_length-1), 'CB'+str(self.cloth_length-1)+'_'+str(self.cloth_length-1)]
                 goals = [self.sim.data.get_body_xpos(goal_vertices[0]), self.sim.data.get_body_xpos(goal_vertices[1])]
                 randomness = self.np_random.uniform(-self.target_range, self.target_range, size=4)
-                goals[0][0] += randomness[0]
-                goals[0][1] += randomness[1]
-                goals[1][0] += randomness[2]
-                goals[1][1] += randomness[3]
+                goals[0][0] += randomness[0]/3
+                goals[0][1] += randomness[1]/2
+                goals[1][0] += -np.abs(randomness[2])
+                goals[1][1] += -np.abs(randomness[3])
                 goal = np.concatenate([ goals[0].copy(), goals[1].copy()])
         else:
             goal = self.initial_gripper_xpos[:3] + self.np_random.uniform(-0.15, 0.15, size=3)
@@ -608,18 +638,19 @@ class RandomizedGen3Env(robot_env.RobotEnv):
         
 
     def _env_setup(self, initial_qpos):
-        for name, value in initial_qpos.items():
-            self.sim.data.set_joint_qpos(name, value)
+        # for name, value in initial_qpos.items():
+        #     self.sim.data.set_joint_qpos(name, value)
         utils.reset_mocap_welds(self.sim)
         self.sim.forward()
-
         # Move end effector into position.
-        gripper_target = np.array([0.6, 0.6 , 0.4 + self.gripper_extra_height]) #+ self.sim.data.get_site_xpos('robotiq_85_base_link')
+        #gripper_target = np.array([0.6, 0.6 , 0.4 + self.gripper_extra_height]) #+ self.sim.data.get_site_xpos('robotiq_85_base_link')
+        gripper_target = np.array([0.8, 0.5 , 0.4 + self.gripper_extra_height]) #+ self.sim.data.get_site_xpos('robotiq_85_base_link')
         gripper_rotation = np.array([0., 1., 1., 0.])
         self.sim.data.set_mocap_pos('robot1:mocap', gripper_target)
         self.sim.data.set_mocap_quat('robot1:mocap', gripper_rotation)
         for _ in range(10):
             self.sim.step()
+
 
         # Extract information for sampling goals.
         self.initial_gripper_xpos = self.sim.data.get_body_xpos('robot1:ee_link').copy() # Needs a change if using the gripper for goal generation

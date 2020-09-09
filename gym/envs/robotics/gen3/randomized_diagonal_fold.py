@@ -4,10 +4,10 @@ from gym.envs.robotics import randomized_gen3_env
 
 
 # Ensure we get the path separator correct on windows
-MODEL_XML_PATH = os.path.join('gen3', 'sideways_fold.xml')
+MODEL_XML_PATH = os.path.join('gen3', 'diagonal_fold.xml')
 
 
-class RandomizedGen3SidewaysFoldEnv(randomized_gen3_env.RandomizedGen3Env, utils.EzPickle):
+class RandomizedGen3DiagonalFoldEnv(randomized_gen3_env.RandomizedGen3Env, utils.EzPickle):
     def __init__(self, reward_type='sparse', **kwargs):
         behaviors = ['diagonally', 'sideways']
         initial_qpos = {
@@ -22,6 +22,6 @@ class RandomizedGen3SidewaysFoldEnv(randomized_gen3_env.RandomizedGen3Env, utils
         randomized_gen3_env.RandomizedGen3Env.__init__(
             self, MODEL_XML_PATH, has_object=False, has_cloth=True, block_gripper=True, n_substeps=20,
             gripper_extra_height=0.2, target_in_the_air=True, target_offset=0.0,
-            obj_range=0.15, target_range=0.15, distance_threshold=0.05, cloth_length=11, behavior=behaviors[1],
+            obj_range=0.15, target_range=0.15, distance_threshold=0.05, cloth_length=11, behavior=behaviors[0],
             initial_qpos=initial_qpos, reward_type=reward_type, **kwargs)
         utils.EzPickle.__init__(self)

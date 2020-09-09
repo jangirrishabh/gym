@@ -6,7 +6,7 @@ import gym
 from gym import error, spaces
 from gym.utils import seeding
 
-from mujoco_py.modder import TextureModder, MaterialModder, LightModder
+from mujoco_py.modder import TextureModder, MaterialModder, LightModder, CameraModder # from mujoco-py package, needs to be rebuilt
 
 try:
     import mujoco_py
@@ -16,7 +16,7 @@ except ImportError as e:
 DEFAULT_SIZE = 500
 
 class RobotEnv(gym.GoalEnv):
-    def __init__(self, model_path, initial_qpos, n_actions, n_substeps):
+    def __init__(self, model_path, initial_qpos, n_actions, n_substeps, mode, visual_randomize, visual_data_recording):
         if model_path.startswith('/'):
             fullpath = model_path
         else:
@@ -24,23 +24,25 @@ class RobotEnv(gym.GoalEnv):
         if not os.path.exists(fullpath):
             raise IOError('File {} does not exist'.format(fullpath))
 
+        self.mode = mode
         model = mujoco_py.load_model_from_path(fullpath)
         self.sim = mujoco_py.MjSim(model, nsubsteps=n_substeps)
-        #self.viewer = None # comment when using "human"
-        self.viewer = mujoco_py.MjViewer(self.sim) #comment when using "rgb_array"
+        self.viewer = None # comment when using "human"
         self._viewers = {}
         
         self.modder = TextureModder(self.sim)
-        self.visual_randomize = True
+        self.visual_randomize = visual_randomize
         self.mat_modder = MaterialModder(self.sim)
         self.light_modder = LightModder(self.sim)
+        self.camera_modder = CameraModder(self.sim)
+
 
         self.metadata = {
             'render.modes': ['human', 'rgb_array'],
             'video.frames_per_second': int(np.round(1.0 / self.dt))
         }
 
-        self.visual_data_recording = True
+        self.visual_data_recording = visual_data_recording
         self._index = 0
         self._label_matrix = []
 
@@ -71,6 +73,21 @@ class RobotEnv(gym.GoalEnv):
         return [seed]
 
     def step(self, action):
+        if self.visual_randomize:
+            for name in self.sim.model.geom_names:
+                self.modder.whiten_materials()
+                self.modder.set_checker(name, (255, 0, 0), (0, 0, 0))
+                self.modder.rand_all(name)
+                self.mat_modder.rand_all(name)
+            self.modder.set_checker('skin', (255, 0, 0), (0, 0, 0))
+            self.modder.rand_all('skin')
+            self.light_modder.rand_all('light0')
+            self.light_modder.rand_all('light1')
+            self.light_modder.rand_all('light2')
+            self.light_modder.rand_all('light3')
+            self.camera_modder.rand_fovy('camera1')
+            self.camera_modder.rand_pos('camera1')
+            self.camera_modder.rand_quat('camera1', factor=[0.1, 0.1, 0.1])
         action = np.clip(action, self.action_space.low, self.action_space.high)
         self._set_action(action)
         self.sim.step()
@@ -95,16 +112,14 @@ class RobotEnv(gym.GoalEnv):
         did_reset_sim = False
         while not did_reset_sim:
             did_reset_sim = self._reset_sim()
-        #Visual randomization
-        if self.visual_randomize:
-            self.light_modder.rand_all('light0')
-            for name in self.sim.model.geom_names:
-                self.modder.whiten_materials()
-                self.modder.set_checker(name, (255, 0, 0), (0, 0, 0))
-                self.modder.rand_all(name)
-                self.mat_modder.rand_all(name)
-            self.modder.set_checker('skin', (255, 0, 0), (0, 0, 0))
-            self.modder.rand_all('skin')
+        # if self.visual_randomize:
+        #     for name in self.sim.model.geom_names:
+        #         self.modder.whiten_materials()
+        #         self.modder.set_checker(name, (255, 0, 0), (0, 0, 0))
+        #         self.modder.rand_all(name)
+        #         self.mat_modder.rand_all(name)
+        #     self.modder.set_checker('skin', (255, 0, 0), (0, 0, 0))
+        #     self.modder.rand_all('skin')   
         self.goal = self._sample_goal().copy()
         obs = self._get_obs()
         return obs

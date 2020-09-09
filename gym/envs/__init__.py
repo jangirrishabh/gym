@@ -380,6 +380,17 @@ for reward_type in ['sparse', 'dense']:
         }
     )
 
+    # Kinova Gen3 sideways fold Randomized
+    register(
+        id='RandomizedGen3DiagonalFold{}-v0'.format(suffix),
+        entry_point='gym.envs.robotics:RandomizedGen3DiagonalFoldEnv',
+        max_episode_steps=100,
+        kwargs={
+            'config': '/home/rjangir/workSpace/gen3-mujoco/gym/gym/envs/robotics/randomizer/config/RandomizedGen3Sideways/default.json',
+            'xml_name': 'diagonal_fold.xml'
+        }
+    )
+
     # Dummy env
     register(
         id='DummyEnv{}-v0'.format(suffix),

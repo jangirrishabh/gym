@@ -113,7 +113,7 @@ def reset_mocap2body_xpos(sim):
 
 #Helper functions to convert 3d point to 2d in image
 #USage label = global2label(obj_pos, cam_pos, cam_ori, output_size, fov=fov, s=s)
-def global2label(obj_pos, cam_pos, cam_ori, output_size=[64, 64], fov=90, s=1):
+def global2label(obj_pos, cam_pos, cam_ori, output_size=[64, 64], fov=45, s=1):
     """
     :param obj_pos: 3D coordinates of the joint from MuJoCo in nparray [m]
     :param cam_pos: 3D coordinates of the camera from MuJoCo in nparray [m]
@@ -129,6 +129,7 @@ def global2label(obj_pos, cam_pos, cam_ori, output_size=[64, 64], fov=90, s=1):
     cam_ori_cv = np.array([cam_ori[1], cam_ori[0], -cam_ori[2]])
     obj_pos_cv = np.array([obj_pos[1], obj_pos[0], -obj_pos[2]])
     cam_pos_cv = np.array([cam_pos[1], cam_pos[0], -cam_pos[2]])
+
 
     obj_pos_in_2D, obj_pos_from_cam = get_2D_from_3D(obj_pos_cv, cam_pos_cv, cam_ori_cv, fov, e)
     #label = gkern(output_size[0], output_size[1], (obj_pos_in_2D[1], output_size[0]-obj_pos_in_2D[0]), sigma=s)
@@ -150,13 +151,15 @@ def get_2D_from_3D(a, c, theta, fov, e):
     ac_diff = a - c
 
     # Rotate the vector in to camera coordinate
-    x_rot = np.array([[1 ,0, 0],
+    y_rot = np.array([[1 ,0, 0],
                     [0, np.cos(theta[0]), np.sin(theta[0])],
                     [0, -np.sin(theta[0]), np.cos(theta[0])]])
 
-    y_rot = np.array([[np.cos(theta[1]) ,0, -np.sin(theta[1])],
+    x_rot = np.array([[np.cos(theta[1]) ,0, -np.sin(theta[1])],
                 [0, 1, 0],
                 [np.sin(theta[1]), 0, np.cos(theta[1])]])
+
+
 
     z_rot = np.array([[np.cos(theta[2]) ,np.sin(theta[2]), 0],
                 [-np.sin(theta[2]), np.cos(theta[2]), 0],
